@@ -7,10 +7,10 @@ import com.spring.THApplicationContext;
  *
  */
 public class App {
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
         THApplicationContext thApplicationContext = new THApplicationContext(AppConfig.class);
         Object userService = thApplicationContext.getBean("userService");
 
-        System.out.println("Hello World!");
+        System.out.println(userService);
     }
 }
