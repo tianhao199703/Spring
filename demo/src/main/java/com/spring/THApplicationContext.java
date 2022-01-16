@@ -2,6 +2,7 @@ package com.spring;
 
 import java.io.File;
 import java.lang.annotation.Annotation;
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URL;
 import java.util.Map;
@@ -23,18 +24,26 @@ public class THApplicationContext {
         scan(configClass);
         for (Map.Entry<String, BeanDefinition> entry : beanDefinitionMap.entrySet()) {
             if (entry.getValue().isSingleton()) {
-                Object o = createBean(entry.getValue());
-                singletonObjectPool.put(entry.getKey(), o);
+                Object obj = createBean(entry.getValue());
+                singletonObjectPool.put(entry.getKey(), obj);
             }
         }
     }
 
     private Object createBean(BeanDefinition beanDefinition) {
-        Class clazz = beanDefinition.getClass();
+        Class clazz = beanDefinition.getClazz();
         try {
-            return clazz.getDeclaredConstructor().newInstance();
-        } catch (InstantiationException | IllegalAccessException | IllegalArgumentException | InvocationTargetException
-                | NoSuchMethodException | SecurityException e) {
+            Object instance = clazz.getDeclaredConstructor().newInstance();
+            // 依赖注入
+            for (Field field : clazz.getDeclaredFields()) {
+                if (field.isAnnotationPresent(Autowired.class)) {
+                    Object obj = getBean(field.getName());
+                    field.setAccessible(true);
+                    field.set(instance, obj);
+                }
+            }
+            return instance;
+        } catch (Exception e) {
             e.printStackTrace();
         }
         return null;
