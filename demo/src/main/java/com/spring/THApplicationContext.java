@@ -1,21 +1,22 @@
 package com.spring;
 
 import java.io.File;
-import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import javax.management.relation.RoleNotFoundException;
-
 import com.example.common.CommonConstant;
+
+import org.springframework.beans.factory.BeanNameAware;
 
 public class THApplicationContext {
     private Class configClass;
     private ConcurrentHashMap<String, Object> singletonObjectPool = new ConcurrentHashMap<>();// 单例池
     private ConcurrentHashMap<String, BeanDefinition> beanDefinitionMap = new ConcurrentHashMap<>();
+    private List<BeanPostProcessor> beanPostProcessorList = new ArrayList<>();
 
     public THApplicationContext(Class configClass) {
         this.configClass = configClass;
@@ -24,13 +25,13 @@ public class THApplicationContext {
         scan(configClass);
         for (Map.Entry<String, BeanDefinition> entry : beanDefinitionMap.entrySet()) {
             if (entry.getValue().isSingleton()) {
-                Object obj = createBean(entry.getValue());
+                Object obj = createBean(entry.getKey(), entry.getValue());
                 singletonObjectPool.put(entry.getKey(), obj);
             }
         }
     }
 
-    private Object createBean(BeanDefinition beanDefinition) {
+    private Object createBean(String beanName, BeanDefinition beanDefinition) {
         Class clazz = beanDefinition.getClazz();
         try {
             Object instance = clazz.getDeclaredConstructor().newInstance();
@@ -41,6 +42,22 @@ public class THApplicationContext {
                     field.setAccessible(true);
                     field.set(instance, obj);
                 }
+            }
+            // aware回调
+            if (instance instanceof BeanNameAware) {
+                ((BeanNameAware) instance).setBeanName(beanName);
+            }
+            // BeanPostProcessor
+            for (BeanPostProcessor beanPostProcessor : beanPostProcessorList) {
+                instance = beanPostProcessor.postProcessorBeforeInitialization(instance, beanName);
+            }
+            // 初始化
+            if (instance instanceof InitializingBean) {
+                ((InitializingBean) instance).afterPropertiesSet();
+            }
+            // BeanPostProcessor
+            for (BeanPostProcessor beanPostProcessor : beanPostProcessorList) {
+                instance = beanPostProcessor.postProcessorAfterInitialization(instance, beanName);
             }
             return instance;
         } catch (Exception e) {
@@ -76,6 +93,11 @@ public class THApplicationContext {
         try {
             Class<?> targetClass = classLoader.loadClass(targetName);
             if (targetClass.isAnnotationPresent(Component.class)) {
+                if (BeanPostProcessor.class.isAssignableFrom(targetClass)) {
+                    BeanPostProcessor instance = (BeanPostProcessor) targetClass.getDeclaredConstructor().newInstance();
+                    beanPostProcessorList.add(instance);
+                }
+
                 Component componentAnnotation = targetClass.getAnnotation(Component.class);
                 String beanName = componentAnnotation.value();
                 BeanDefinition beanDefinition = new BeanDefinition();
@@ -88,7 +110,7 @@ public class THApplicationContext {
                 }
                 beanDefinitionMap.put(beanName, beanDefinition);
             }
-        } catch (ClassNotFoundException e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
@@ -101,7 +123,7 @@ public class THApplicationContext {
         if (beanDefinition.isSingleton()) {
             return singletonObjectPool.get(beanName);
         } else {
-            return createBean(beanDefinition);
+            return createBean(beanName, beanDefinition);
         }
     }
 }
