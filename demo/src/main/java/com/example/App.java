@@ -1,6 +1,6 @@
 package com.example;
 
-import com.example.service.UserService;
+import com.example.service.UserInterface;
 import com.spring.THApplicationContext;
 
 /**
@@ -10,7 +10,7 @@ import com.spring.THApplicationContext;
 public class App {
     public static void main(String[] args) throws Exception {
         THApplicationContext thApplicationContext = new THApplicationContext(AppConfig.class);
-        UserService userService = (UserService) thApplicationContext.getBean("userService");
+        UserInterface userService = (UserInterface) thApplicationContext.getBean("userService");
 
         System.out.println(userService);
         userService.test();
