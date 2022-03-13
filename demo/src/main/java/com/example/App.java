@@ -1,6 +1,7 @@
 package com.example;
 
 import com.example.service.UserInterface;
+import com.example.service.UserService;
 import com.spring.THApplicationContext;
 
 /**
@@ -14,5 +15,8 @@ public class App {
 
         System.out.println(userService);
         userService.test();
+
+        UserService userService1 = (UserService) thApplicationContext.getBean("userService");
+        userService1.testMabatis();
     }
 }
