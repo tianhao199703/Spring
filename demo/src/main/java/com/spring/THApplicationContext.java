@@ -15,6 +15,7 @@ import org.springframework.beans.factory.BeanNameAware;
 public class THApplicationContext {
     private Class configClass;
     private ConcurrentHashMap<String, Object> singletonObjectPool = new ConcurrentHashMap<>();// 单例池
+    private ConcurrentHashMap<String, Object> level3Cache = new ConcurrentHashMap<>();// 三级缓存map
     private ConcurrentHashMap<String, BeanDefinition> beanDefinitionMap = new ConcurrentHashMap<>();
     private List<BeanPostProcessor> beanPostProcessorList = new ArrayList<>();
 
@@ -35,6 +36,7 @@ public class THApplicationContext {
         Class clazz = beanDefinition.getClazz();
         try {
             Object instance = clazz.getDeclaredConstructor().newInstance();
+            level3Cache.put(beanName, instance);
             // 依赖注入
             for (Field field : clazz.getDeclaredFields()) {
                 if (field.isAnnotationPresent(Autowired.class)) {
@@ -117,7 +119,7 @@ public class THApplicationContext {
 
     public Object getBean(String beanName) throws Exception {
         if (!beanDefinitionMap.containsKey(beanName)) {
-            throw new Exception("do not exist bean");
+            return level3Cache.get(beanName);
         }
         BeanDefinition beanDefinition = beanDefinitionMap.get(beanName);
         if (beanDefinition.isSingleton()) {
